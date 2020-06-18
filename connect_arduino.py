@@ -1,26 +1,56 @@
 from serial import*
-import sys
-Port = "/dev/ttyACM0"
-Baudrate = 115200
-board = Serial(Port,Baudrate)
-msg = ""
-while msg.find("Arduino ready") == -1:
-	while board.inWaiting() == 0:
-		pass
-	msg = board.readline().decode('utf-8')
-print("Connected")
-board.flush()
-while True:
-	try:
-		msg = '0' + '\n'
+class Arduino:
+	def __init__(self,port="/dev/ttyACM0",baudrate=115200):
+		self.port = port
+		self.baudrate = baudrate
+		self.msg = "Arduino ready"
+		self.connected = False
+		self.board = None
+		
+	def connect(self):
+		try:
+			msg =""
+			self.board = Serial(self.port,self.baudrate)
+			while msg.find(self.msg) == -1:
+				while self.board.inWaiting() == 0:
+					pass
+				msg = self.board.readline().decode('utf-8')
+			
+			self.connected =True
+			self.board.flush()
+			return self.connected 
+		except Exception as e:
+			print(e)
+			return self.connected 
+			
+	def send(self,d):
+		if type(d) != str:
+			d =str(d)
+		msg = d + '\n'
 		msg = msg.encode('utf-8')
-		board.write(msg)
-		while(board.inWaiting()==0): # Wait here untill there is data on the Serial Port
-			pass                          # Do nothing, just loop until data arrives
-		data = board.readline().decode('utf-8').split(',')
+		self.board.write(msg)
+		while(self.board.inWaiting()==0):
+			pass
+		data = self.board.readline().decode('utf-8').split(',')
 		data[len(data) - 1] = data[len(data) - 1].rstrip()
-		print(data)
-	except KeyboardInterrupt:
-		board.close()
+		return data
 
-		sys.exit()
+	def disconnect(self):
+		self.board.close()
+		self.connected = False
+		
+		
+import time
+
+Mega = Arduino()
+connection = Mega.connect()
+while connection:
+	time.sleep(1)
+	try:
+		print(Mega.send(0))
+		
+	except KeyboardInterrupt:
+		Mega.disconnect()
+		break
+		
+print("Done")
